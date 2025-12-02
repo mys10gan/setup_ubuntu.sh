@@ -3,7 +3,7 @@
 > Opinionated, one-command Ubuntu bootstrap for fresh cloud servers.
 
 ```
-                  _
+                     _
   _ __ ___  _   ____| |_
  | '_ ` _ \| | | / __| __|
  | | | | | | |_| \__ \ |_
@@ -18,8 +18,7 @@
 SSH into your fresh Ubuntu server and run:
 
 ```bash
-sudo apt-get update -y && sudo apt-get install -y git
-git clone https://github.com/mys10gan/setup_ubuntu.sh.git ~/setup_ubuntu.sh
+git clone https://github.com/mys10gan/setup_ubuntu.sh.git
 cd ~/setup_ubuntu.sh && sudo bash bootstrap_root.sh
 ```
 
