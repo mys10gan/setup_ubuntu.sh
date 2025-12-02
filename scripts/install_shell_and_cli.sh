@@ -28,7 +28,7 @@ install_starship() {
     log INFO "starship already installed."
   else
     log INFO "Installing starship prompt..."
-    curl -fsSL https://starship.rs/install.sh | bash -s -- -y
+    curl -fsSL https://starship.rs/install.sh | sh -s -- -y
     log SUCCESS "starship installed."
   fi
 
