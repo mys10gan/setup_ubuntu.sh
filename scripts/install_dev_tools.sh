@@ -39,6 +39,12 @@ install_uv() {
 }
 
 install_node_with_fnm() {
+  # Add fnm to PATH if it exists
+  if [[ -d "$HOME/.local/share/fnm" ]]; then
+    export PATH="$HOME/.local/share/fnm:$PATH"
+    eval "$(fnm env --shell bash 2>/dev/null)" || true
+  fi
+
   if command -v node &>/dev/null; then
     log INFO "Node.js already available (skipping fnm)."
     return
@@ -48,21 +54,32 @@ install_node_with_fnm() {
     log INFO "Installing fnm (Fast Node Manager)..."
     curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
     log SUCCESS "fnm installed."
+
+    # Add to PATH for current session
+    export PATH="$HOME/.local/share/fnm:$PATH"
   fi
 
   ensure_fish_config
   append_if_missing 'set -gx PATH $HOME/.local/share/fnm $PATH' "$FISH_CONFIG_FILE"
   append_if_missing 'fnm env --use-on-cd --shell fish | source' "$FISH_CONFIG_FILE"
 
-  export PATH="$HOME/.local/share/fnm:$PATH"
-  # shellcheck disable=SC1091
+  # Initialize fnm for current session
   eval "$(fnm env --shell bash)" || true
 
   log INFO "Installing latest LTS Node.js via fnm..."
   fnm install --lts
-  fnm default "$(fnm ls | grep -i lts | tail -n 1 | awk '{print $1}')" || true
 
-  log SUCCESS "Node.js installed with fnm."
+  # Set the installed version as default (get version number properly)
+  local installed_version
+  installed_version="$(fnm list | grep -i lts | head -n 1 | sed 's/.*\(v[0-9]*\.[0-9]*\.[0-9]*\).*/\1/' | tr -d ' ')" || true
+  if [[ -n "$installed_version" ]]; then
+    fnm default "$installed_version"
+    log SUCCESS "Node.js $installed_version installed and set as default."
+  else
+    # Fallback: just use the first installed version
+    fnm default "$(fnm list | head -n 1 | awk '{print $2}')" 2>/dev/null || true
+    log SUCCESS "Node.js installed with fnm."
+  fi
 }
 
 install_pyenv_optional() {
