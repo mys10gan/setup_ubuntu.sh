@@ -29,6 +29,11 @@ install_starship() {
     log SUCCESS "starship installed to ~/.local/bin."
   fi
 
+  # Ensure the current shell session can see ~/.local/bin (needed for preset commands).
+  if [[ ":${PATH}:" != *":$HOME/.local/bin:"* ]]; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
   ensure_fish_dirs
 
   # Create dedicated config file
@@ -163,7 +168,13 @@ alias ... 'cd ../..'
 alias .... 'cd ../../..'
 
 # Tool Aliases
-alias bat 'batcat'
+if command -v batcat >/dev/null
+    alias bat 'batcat'
+    alias cat 'batcat'
+else if command -v bat >/dev/null
+    alias cat 'bat'
+end
+
 alias lzd 'lazydocker'
 alias g 'git'
 alias d 'docker'
@@ -178,7 +189,11 @@ alias gp 'git push'
 
 # Interactive FZF
 if command -v fzf >/dev/null
-    alias ff "fzf --preview 'batcat --style=numbers --color=always {}'"
+    if command -v batcat >/dev/null
+        alias ff "fzf --preview 'batcat --style=numbers --color=always {}'"
+    else if command -v bat >/dev/null
+        alias ff "fzf --preview 'bat --style=numbers --color=always {}'"
+    end
 end
 
 # Functions
@@ -193,39 +208,6 @@ if command -v nvim >/dev/null
         end
     end
 end
-
-# Create desktop launcher for web app
-function web2app
-    if test (count $argv) -ne 3
-        echo "Usage: web2app <AppName> <AppURL> <IconURL>"
-        echo "(IconURL must be PNG)"
-        return 1
-    end
-    set APP_NAME $argv[1]
-    set APP_URL $argv[2]
-    set ICON_URL $argv[3]
-    set ICON_DIR "$HOME/.local/share/applications/icons"
-    set DESKTOP_FILE "$HOME/.local/share/applications/$APP_NAME.desktop"
-    set ICON_PATH "$ICON_DIR/$APP_NAME.png"
-    mkdir -p "$ICON_DIR"
-    if not curl -sL -o "$ICON_PATH" "$ICON_URL"
-        echo "Error: Failed to download icon."
-        return 1
-    end
-    echo "[Desktop Entry]
-Version=1.0
-Name=$APP_NAME
-Comment=$APP_NAME
-Exec=google-chrome --app=\"$APP_URL\" --name=\"$APP_NAME\" --class=\"$APP_NAME\"
-Terminal=false
-Type=Application
-Icon=$ICON_PATH
-Categories=GTK;
-MimeType=text/html;text/xml;application/xhtml_xml;
-StartupNotify=true" > "$DESKTOP_FILE"
-    chmod +x "$DESKTOP_FILE"
-    echo "App created: $APP_NAME"
-end
 EOF
 
   log SUCCESS "Omakub-style aliases configured in conf.d/omakub_aliases.fish"
@@ -236,64 +218,100 @@ install_starship_theme() {
   mkdir -p "$config_dir"
   local config_file="$config_dir/starship.toml"
 
-  # Always overwrite with the cleaner theme requested
-  log INFO "Applying 'clean' starship theme..."
+  local preset_url="https://starship.rs/presets/toml/jetpack.toml"
 
-  cat > "$config_file" << 'EOF'
-# Clean/Minimal Starship Preset (No powerline blocks)
+  log INFO "Applying Starship 'Jetpack' preset (clean minimal right-prompt) from $preset_url ..."
+  if curl -fsSL "$preset_url" -o "$config_file"; then
+    log SUCCESS "Jetpack preset downloaded and applied to $config_file."
+  else
+    log WARN "Failed to download Jetpack preset; using bundled fallback."
+    cat > "$config_file" << 'EOF'
+# Fallback: Jetpack-inspired preset (subset) for starship
 add_newline = true
+continuation_prompt = "[▸▹ ](dimmed white)"
+
+format = """
+($nix_shell$container$fill$git_metrics\n)$cmd_duration\
+$hostname\
+$username\
+$character"""
+
+right_format = """
+$directory\
+$git_branch\
+$git_status\
+$docker_context\
+$nodejs\
+$python\
+$rust\
+$package\
+$time"""
+
+[fill]
+symbol = ' '
 
 [character]
-success_symbol = "[➜](bold green)"
-error_symbol = "[➜](bold red)"
+format = "$symbol "
+success_symbol = "[◎](bold italic bright-yellow)"
+error_symbol = "[○](italic purple)"
 
-[package]
-disabled = true
+[username]
+style_user = "bright-yellow bold italic"
+style_root = "purple bold italic"
+format = "[⭘ $user]($style) "
 
 [directory]
-truncation_length = 3
-truncate_to_repo = false
-style = "bold cyan"
+home_symbol = "⌂"
+truncation_length = 2
+truncation_symbol = "…/"
 read_only = " "
-
-[directory.substitutions]
-"Documents" = "󰈙 "
-"Downloads" = " "
-"Music" = " "
-"Pictures" = " "
+style = "italic blue"
 
 [git_branch]
-symbol = " "
-style = "bold purple"
+format = " [$branch]($style)"
+symbol = "[△](bold italic bright-blue)"
+style = "italic bright-blue"
+truncation_symbol = "⋯"
 
 [git_status]
-style = "bold red"
+style = "bold italic bright-blue"
+format = "([⎪$ahead_behind$staged$modified$untracked⎥]($style))"
+conflicted = "[◪◦](italic bright-magenta)"
+ahead = "[▴│${count}│](italic green)"
+behind = "[▿│${count}│](italic red)"
+untracked = "[◌◦](italic bright-yellow)"
+modified = "[●◦](italic yellow)"
+staged = "[▪│$count│](italic bright-cyan)"
 
-[docker_context]
-symbol = " "
-style = "blue dimmed"
-
-[python]
-symbol = "🐍 "
-style = "yellow dimmed"
+[cmd_duration]
+format = "[◄ $duration ](italic white)"
 
 [nodejs]
-symbol = "⬢ "
-style = "green dimmed"
+format = " [node](italic) [◫ ($version)](bold bright-green)"
+detect_files = ["package-lock.json", "yarn.lock"]
+
+[python]
+format = " [py](italic) [⌉${version}⌊](bold bright-yellow)"
 
 [rust]
-symbol = "🦀 "
-style = "red dimmed"
+format = " [rs](italic) [⊃ $version](bold red)"
 
-[golang]
-symbol = "🐹 "
-style = "cyan dimmed"
+[docker_context]
+symbol = "◧ "
+format = " [$symbol$context](bold blue)"
 
-[php]
-symbol = " "
-style = "blue dimmed"
+[package]
+format = " [pkg](italic dimmed) [◨ $version](dimmed yellow italic bold)"
+
+[time]
+disabled = false
+format = "[ $time](italic dimmed white)"
+time_format = "%R"
 EOF
-  log SUCCESS "Starship theme configured at ~/.config/starship.toml"
+    log SUCCESS "Fallback Jetpack-inspired preset written to $config_file."
+  fi
+
+  log SUCCESS "Starship theme ready at $config_file"
 }
 
 cleanup_legacy_config() {
