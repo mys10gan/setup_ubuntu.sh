@@ -128,22 +128,107 @@ install_eza_and_aliases() {
     brew install eza
     log SUCCESS "eza installed."
   else
-    log WARN "brew not available; skipping eza installation. ls aliases will not be set."
-    return
+    log WARN "brew not available; skipping eza installation."
+    # We continue to writing aliases even if eza isn't found yet,
+    # because the aliases are guarded by 'if command -v eza' in fish.
+  fi
+
+  # Install fzf and bat (batcat) for rich aliases
+  log INFO "Installing fzf and bat for rich shell features..."
+  if command -v brew &>/dev/null; then
+    brew install fzf bat
+  else
+    sudo apt-get install -y fzf bat
   fi
 
   ensure_fish_dirs
 
-  cat > "$FISH_CONF_D_DIR/eza_aliases.fish" << 'EOF'
-# eza aliases
+  # Write comprehensive Omakub-style configuration
+  cat > "$FISH_CONF_D_DIR/omakub_aliases.fish" << 'EOF'
+# ============================================
+# Omakub-inspired Aliases & Functions (Tailored)
+# ============================================
+
+# File System Aliases
 if command -v eza >/dev/null
-    alias ls "eza --group-directories-first --icons --header"
-    alias ll "eza -lh --group-directories-first --icons --header"
-    alias la "eza -lha --group-directories-first --icons --header"
+    alias ls 'eza -lh --group-directories-first --icons=auto'
+    alias lsa 'ls -a'
+    alias lt 'eza --tree --level=2 --long --icons --git'
+    alias lta 'lt -a'
+end
+
+# Navigation
+alias .. 'cd ..'
+alias ... 'cd ../..'
+alias .... 'cd ../../..'
+
+# Tool Aliases
+alias bat 'batcat'
+alias lzd 'lazydocker'
+alias g 'git'
+alias d 'docker'
+
+# Git
+alias gcm 'git commit -m'
+alias gcam 'git commit -a -m'
+alias gcad 'git commit -a --amend'
+alias gst 'git status'
+alias gl 'git pull'
+alias gp 'git push'
+
+# Interactive FZF
+if command -v fzf >/dev/null
+    alias ff "fzf --preview 'batcat --style=numbers --color=always {}'"
+end
+
+# Functions
+
+# Neovim - open current dir if no args
+if command -v nvim >/dev/null
+    function n
+        if test (count $argv) -eq 0
+            nvim .
+        else
+            nvim $argv
+        end
+    end
+end
+
+# Create desktop launcher for web app
+function web2app
+    if test (count $argv) -ne 3
+        echo "Usage: web2app <AppName> <AppURL> <IconURL>"
+        echo "(IconURL must be PNG)"
+        return 1
+    end
+    set APP_NAME $argv[1]
+    set APP_URL $argv[2]
+    set ICON_URL $argv[3]
+    set ICON_DIR "$HOME/.local/share/applications/icons"
+    set DESKTOP_FILE "$HOME/.local/share/applications/$APP_NAME.desktop"
+    set ICON_PATH "$ICON_DIR/$APP_NAME.png"
+    mkdir -p "$ICON_DIR"
+    if not curl -sL -o "$ICON_PATH" "$ICON_URL"
+        echo "Error: Failed to download icon."
+        return 1
+    end
+    echo "[Desktop Entry]
+Version=1.0
+Name=$APP_NAME
+Comment=$APP_NAME
+Exec=google-chrome --app=\"$APP_URL\" --name=\"$APP_NAME\" --class=\"$APP_NAME\"
+Terminal=false
+Type=Application
+Icon=$ICON_PATH
+Categories=GTK;
+MimeType=text/html;text/xml;application/xhtml_xml;
+StartupNotify=true" > "$DESKTOP_FILE"
+    chmod +x "$DESKTOP_FILE"
+    echo "App created: $APP_NAME"
 end
 EOF
 
-  log SUCCESS "eza aliases configured in conf.d/eza_aliases.fish"
+  log SUCCESS "Omakub-style aliases configured in conf.d/omakub_aliases.fish"
 }
 
 install_starship_theme() {
@@ -151,15 +236,11 @@ install_starship_theme() {
   mkdir -p "$config_dir"
   local config_file="$config_dir/starship.toml"
 
-  if [[ -f "$config_file" ]]; then
-    log INFO "starship.toml already exists. Skipping theme overwrite."
-    return
-  fi
+  # Always overwrite with the cleaner theme requested
+  log INFO "Applying 'clean' starship theme..."
 
-  log INFO "Applying 'myst' starship theme..."
-  # A clean, preset-style config inspired by various popular themes
   cat > "$config_file" << 'EOF'
-# myst starship preset
+# Clean/Minimal Starship Preset (No powerline blocks)
 add_newline = true
 
 [character]
@@ -173,10 +254,17 @@ disabled = true
 truncation_length = 3
 truncate_to_repo = false
 style = "bold cyan"
+read_only = " "
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
 
 [git_branch]
+symbol = " "
 style = "bold purple"
-symbol = " "
 
 [git_status]
 style = "bold red"
@@ -200,6 +288,10 @@ style = "red dimmed"
 [golang]
 symbol = "🐹 "
 style = "cyan dimmed"
+
+[php]
+symbol = " "
+style = "blue dimmed"
 EOF
   log SUCCESS "Starship theme configured at ~/.config/starship.toml"
 }
