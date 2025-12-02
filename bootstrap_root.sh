@@ -23,7 +23,7 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 print_banner() {
     echo -e "${PURPLE}${BOLD}"
     cat << 'EOF'
-                  _
+                      _
   _ __ ___  _   _ ___| |_
  | '_ ` _ \| | | / __| __|
  | | | | | | |_| \__ \ |_
