@@ -314,29 +314,10 @@ EOF
   log SUCCESS "Starship theme ready at $config_file"
 }
 
-cleanup_legacy_config() {
-  # Remove lines we previously appended to config.fish, since we now use conf.d
-  if [[ -f "$FISH_CONFIG_FILE" ]]; then
-    log INFO "Cleaning up legacy entries from config.fish..."
-    # We use a temporary file to filter out lines we know we added
-    grep -vE "starship init fish" "$FISH_CONFIG_FILE" | \
-    grep -vE "zoxide init fish" | \
-    grep -vE "brew shellenv" | \
-    grep -vE "fnm env" | \
-    grep -vE "set -gx PATH .*local/bin" | \
-    grep -vE "set -gx PATH .*fnm" | \
-    grep -vE "alias l[sla].*eza" > "${FISH_CONFIG_FILE}.tmp"
-
-    mv "${FISH_CONFIG_FILE}.tmp" "$FISH_CONFIG_FILE"
-    log SUCCESS "Cleaned up legacy config.fish entries."
-  fi
-}
-
 install_starship
 install_starship_theme
 install_zoxide
 install_brew
 install_eza_and_aliases
-cleanup_legacy_config
 
 
