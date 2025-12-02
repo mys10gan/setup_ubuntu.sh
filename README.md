@@ -18,11 +18,21 @@
 SSH into your fresh Ubuntu server and run:
 
 ```bash
-git clone https://github.com/mys10gan/setup_ubuntu.sh.git
+git clone https://github.com/mys10gan/setup_ubuntu.sh.git ~/setup_ubuntu.sh
 cd ~/setup_ubuntu.sh && sudo bash bootstrap_root.sh
 ```
 
 Follow the prompts (username + password), then **exit and re-SSH as the new user**. Done.
+
+### Re-running (skip user creation)
+
+If the user already exists and you just want to re-run the installers:
+
+```bash
+sudo bash bootstrap_root.sh -u <username> --skip-user
+```
+
+This skips password prompts and SSH key copying, and just runs all the install scripts.
 
 ---
 

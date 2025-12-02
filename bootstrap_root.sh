@@ -11,6 +11,45 @@ ROOT_DIR="$SCRIPT_DIR"
 require_root
 
 DEFAULT_USERNAME="dev"
+SKIP_USER_SETUP=false
+
+show_usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -u, --user <username>   Specify username (default: $DEFAULT_USERNAME)"
+    echo "  -s, --skip-user         Skip user creation/password prompts (user must exist)"
+    echo "  -h, --help              Show this help message"
+    echo
+    echo "Examples:"
+    echo "  $0                      # Interactive: prompts for username and password"
+    echo "  $0 -u myuser            # Create user 'myuser' (prompts for password if new)"
+    echo "  $0 -u myuser -s         # Skip user setup, just run installers for 'myuser'"
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -u|--user)
+                DEFAULT_USERNAME="$2"
+                shift 2
+                ;;
+            -s|--skip-user)
+                SKIP_USER_SETUP=true
+                shift
+                ;;
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            *)
+                log ERROR "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+}
 
 on_error() {
     local line="$1"
@@ -201,14 +240,25 @@ verify_lazydocker_for_user() {
 }
 
 main() {
+    parse_args "$@"
+
     print_banner
     log INFO "Bootstrap: creating user, configuring SSH, and running system + user setup."
 
     local username
-    username="$(prompt_for_username)"
+    if [[ "$SKIP_USER_SETUP" == true ]]; then
+        username="$DEFAULT_USERNAME"
+        if ! id "$username" &>/dev/null; then
+            log ERROR "User '$username' does not exist. Cannot use --skip-user."
+            exit 1
+        fi
+        log INFO "Skipping user creation (--skip-user). Using existing user '$username'."
+    else
+        username="$(prompt_for_username)"
+        create_user_if_needed "$username"
+        copy_authorized_keys "$username"
+    fi
 
-    create_user_if_needed "$username"
-    copy_authorized_keys "$username"
     copy_repo_to_user_home "$username"
 
     log INFO "Running system-level setup as root (apt, Docker, fish)..."
